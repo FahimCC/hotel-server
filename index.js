@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 
 const app = express();
@@ -26,7 +26,44 @@ async function run() {
 		// Connect the client to the server	(optional starting in v4.7)
 		// await client.connect();
 
-		
+		const userCollection = client.db('hotel').collection('users');
+		const hotelCollection = client.db('hotel').collection('hotelList');
+		const bookingCollection = client.db('hotel').collection('bookingList');
+
+		//user
+		app.post('/users', async (req, res) => {
+			const user = req.body;
+			const query = { email: user.email };
+			const existsUser = await userCollection.findOne(query);
+
+			if (existsUser) {
+				return res.send({ message: 'user already exists.' });
+			}
+			user.role = 'client';
+			const result = await userCollection.insertOne(user);
+			res.send(result);
+		});
+
+		//hotelList
+		app.get('/hotel-list/:place', async (req, res) => {
+			const place = req.params.place;
+			const query = { districtName: place };
+			const result = await hotelCollection.find(query).toArray();
+			res.send(result);
+		});
+		app.get('/hotel-book/:id', async (req, res) => {
+			const id = req.params.id;
+			const query = { _id: new ObjectId(id) };
+			const result = await hotelCollection.findOne(query);
+			res.send(result);
+		});
+
+		//bookingCollection
+		app.post('/bookingCollection', async (req, res) => {
+			const bookingInfo = req.body;
+			const result = await bookingCollection.insertOne(bookingInfo);
+			res.send(result);
+		});
 
 		// Send a ping to confirm a successful connection
 		await client.db('admin').command({ ping: 1 });
