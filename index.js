@@ -5,7 +5,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 
 const app = express();
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 4000;
 
 //middleware
 app.use(cors());
@@ -87,6 +87,10 @@ async function run() {
 		});
 
 		//user
+		app.get('/users', verifyJWT, verifyAdmin, async (req, res) => {
+			const result = await userCollection.find().toArray();
+			res.send(result);
+		});
 		app.post('/users', async (req, res) => {
 			const user = req.body;
 			const query = { email: user.email };
@@ -99,6 +103,17 @@ async function run() {
 			const result = await userCollection.insertOne(user);
 			res.send(result);
 		});
+		app.patch('/users/admin/:id', verifyJWT, verifyAdmin, async (req, res) => {
+			const id = req.params.id;
+			const filter = { _id: new ObjectId(id) };
+			const updateDoc = {
+				$set: {
+					role: 'admin',
+				},
+			};
+			const result = await userCollection.updateOne(filter, updateDoc);
+			res.send(result);
+		});
 		app.get('/users/admin/:email', verifyJWT, async (req, res) => {
 			const email = req.params.email;
 
@@ -108,7 +123,7 @@ async function run() {
 
 			const query = { email: email };
 			const user = await userCollection.findOne(query);
-			const result = { admin: user.role === 'admin' };
+			const result = { admin: user?.role === 'admin' };
 			res.send(result);
 		});
 		app.get('/users/owner/:email', verifyJWT, async (req, res) => {
@@ -131,41 +146,92 @@ async function run() {
 			const result = await hotelCollection.find(query).toArray();
 			res.send(result);
 		});
+		app.get('/all-rooms', verifyJWT, verifyOwner, async (req, res) => {
+			const result = await hotelCollection.find().toArray();
+			res.send(result);
+		});
+		app.delete('/all-rooms/:id', verifyJWT, verifyOwner, async (req, res) => {
+			const id = req.params.id;
+			const query = { _id: new ObjectId(id) };
+			const result = await hotelCollection.deleteOne(query);
+			res.send(result);
+		});
+		app.get('/manage-rooms', verifyJWT, verifyAdmin, async (req, res) => {
+			const result = await hotelCollection.find().toArray();
+			res.send(result);
+		});
+		app.delete(
+			'/manage-rooms/:id',
+			verifyJWT,
+			verifyAdmin,
+			async (req, res) => {
+				const id = req.params.id;
+				const query = { _id: new ObjectId(id) };
+				const result = await hotelCollection.deleteOne(query);
+				res.send(result);
+			}
+		);
 		app.get('/hotel-book/:id', async (req, res) => {
 			const id = req.params.id;
 			const query = { _id: new ObjectId(id) };
 			const result = await hotelCollection.findOne(query);
 			res.send(result);
 		});
-		app.post('/add-room', async (req, res) => {
+		app.post('/add-room', verifyJWT, verifyOwner, async (req, res) => {
 			const room = req.body;
 			const result = await hotelCollection.insertOne(room);
+			res.send(result);
+		});
+		app.get('/update-room-get/:id', verifyJWT, async (req, res) => {
+			const id = req.params.id;
+			const query = { _id: new ObjectId(id) };
+			const result = await hotelCollection.findOne(query);
+			res.send(result);
+		});
+		app.patch('/update-room-patch/:id', verifyJWT, async (req, res) => {
+			const id = req.params.id;
+			const room = req.body;
+			const query = { _id: new ObjectId(id) };
+			const updateDoc = {
+				$set: {
+					hotelImage: room?.hotelImage,
+					twoBedAvailable: room?.twoBedAvailable,
+					deluxeAvailable: room?.deluxeAvailable,
+					penthouseAvailable: room?.penthouseAvailable,
+					ratings: room?.ratings,
+					twoBedPrice: room?.twoBedPrice,
+					deluxePrice: room?.deluxePrice,
+					penthousePrice: room?.penthousePrice,
+					description: room?.description,
+				},
+			};
+			const result = await hotelCollection.updateOne(query, updateDoc);
 			res.send(result);
 		});
 
 		//bookingCollection
 		app.post('/booking-collection', verifyJWT, async (req, res) => {
 			const bookingInfo = req.body;
-			bookingInfo.status = 'booking';
+			bookingInfo.status = 'Booked';
 			const result = await bookingCollection.insertOne(bookingInfo);
 			res.send(result);
 		});
-		app.get('/all-booking', verifyJWT, async (req, res) => {
+		app.get('/all-bookings', async (req, res) => {
 			const result = await bookingCollection.find().toArray();
 			res.send(result);
 		});
-		app.get('/my-booking/:email', verifyJWT, async (req, res) => {
+		app.get('/own-bookings-get/:email', async (req, res) => {
 			const email = req.params.email;
 			const query = { email: email };
 			const result = await bookingCollection.find(query).toArray();
 			res.send(result);
 		});
-		app.patch('/my-booking/:id', verifyJWT, async (req, res) => {
+		app.patch('/own-bookings-patch/:id', async (req, res) => {
 			const id = req.params.id;
 			const query = { _id: new ObjectId(id) };
 			const updateDoc = {
 				$set: {
-					status: 'canceled',
+					status: 'Canceled',
 				},
 			};
 			const result = await bookingCollection.updateOne(query, updateDoc);
